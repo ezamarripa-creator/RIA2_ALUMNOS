@@ -39,7 +39,7 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SISTEMA SEMS - RIA Dashboard v7.0 | Parciales 1 y 2 (Drive Directo)</title>
+    <title>SISTEMA SEMS - RIA Dashboard v8.0 | Parciales 1 y 2 (Drive Directo)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -159,11 +159,12 @@
     </main>
 
     <script>
-        // CONFIGURACIÓN: ID DEL ARCHIVO COMPARTIDO EN GOOGLE DRIVE
-        const GOOGLE_SHEET_ID = '1vTjGjeIwt1U9h1_OiMMy1IqpM-aH-jN9';
-        const GOOGLE_DRIVE_EXPORT_URL = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/export?format=xlsx`;
+        // --- NUEVA CONFIGURACIÓN: ID DEL ARCHIVO EXCEL COMPARTIDO EN GOOGLE DRIVE ---
+        const GOOGLE_FILE_ID = '1vTjGjeIwt1U9h1_OiMMy1IqpM-aH-jN9';
+        // URL de exportación directa para archivos Excel subidos a Drive (formato XLSX)
+        const GOOGLE_DRIVE_EXPORT_URL = `https://docs.google.com/spreadsheets/d/${GOOGLE_FILE_ID}/export?format=xlsx`;
         
-        const DB_NAME = 'SemsRia_DriveV7_Parciales';
+        const DB_NAME = 'SemsRia_DriveV8_Parciales';
         const STORE_NAME = 'data';
         let db = null;
         let dataGlobal = [];
@@ -205,34 +206,37 @@
             
             console.log(`📥 Columnas detectadas:`, Object.keys(json[0] || {}));
             console.log(`📄 Registros brutos: ${json.length}`);
+            console.log(`📋 Primer registro muestra:`, json[0]);
             
             const processed = json.map((r, idx) => {
-                const plantel = getValueByKeys(r, ['plantel', 'escuela', 'PLANTEL', 'Escuela', 'Plantel', 'Campus']) || 'No especificado';
-                const semestre = getValueByKeys(r, ['semestre', 'sem', 'SEMESTRE', 'Semestre', 'Grado', 'Sem']) || '-';
-                const turnoRaw = String(getValueByKeys(r, ['turno', 'TURNO', 'Turno', 'Jornada']) || '');
+                // Mapeo de campos con muchas variantes posibles
+                const plantel = getValueByKeys(r, ['plantel', 'no_plantel', 'escuela', 'PLANTEL', 'Escuela', 'Plantel', 'Campus', 'NO_PLANTEL']) || 'No especificado';
+                const semestre = getValueByKeys(r, ['semestre', 'sem', 'SEMESTRE', 'Semestre', 'Grado', 'Sem', 'grado', 'GRADO']) || '-';
+                const turnoRaw = String(getValueByKeys(r, ['turno', 'TURNO', 'Turno', 'Jornada', 'jornada']) || '');
                 const turno = (turnoRaw.toLowerCase().includes('m') || turnoRaw === '1' || turnoRaw === 'MATUTINO' || turnoRaw === 'matutino') ? 'Matutino' : 
-                              (turnoRaw.toLowerCase().includes('v') || turnoRaw === '2' || turnoRaw === 'VESPERTINO') ? 'Vespertino' : 'Otro';
-                const grupo = getValueByKeys(r, ['grupo', 'gp', 'GRUPO', 'Grupo', 'Grupo escolar']) || '-';
-                const alumno = getValueByKeys(r, ['nombre', 'alumno', 'ALUMNO', 'Nombre', 'Alumno', 'Estudiante', 'NOMBRE']) || 'ANÓNIMO';
-                const materia = getValueByKeys(r, ['materia', 'asignatura', 'MATERIA', 'Materia', 'Asignatura']) || 'N/A';
-                const docente = getValueByKeys(r, ['nombre_doc', 'docente', 'DOCENTE', 'Docente', 'Maestro', 'Profesor']) || 'N/A';
+                              (turnoRaw.toLowerCase().includes('v') || turnoRaw === '2' || turnoRaw === 'VESPERTINO' || turnoRaw === 'vespertino') ? 'Vespertino' : 'Otro';
+                const grupo = getValueByKeys(r, ['grupo', 'gp', 'GRUPO', 'Grupo', 'Grupo escolar', 'grupo_escolar']) || '-';
+                const alumno = getValueByKeys(r, ['nombre', 'alumno', 'ALUMNO', 'Nombre', 'Alumno', 'Estudiante', 'NOMBRE', 'nombre_alumno']) || 'ANÓNIMO';
+                const materia = getValueByKeys(r, ['materia', 'asignatura', 'MATERIA', 'Materia', 'Asignatura', 'nombre_materia']) || 'N/A';
+                const docente = getValueByKeys(r, ['nombre_doc', 'docente', 'DOCENTE', 'Docente', 'Maestro', 'Profesor', 'docente_nombre']) || 'N/A';
                 
-                let cal1 = parseFloat(getValueByKeys(r, ['cal_1', 'cal1', 'parcial1', 'p1', 'nota1', 'Cal_1', 'Cal1', 'Parcial1', 'P1', 'CAL1'])) || 0;
-                let cal2 = parseFloat(getValueByKeys(r, ['cal_2', 'cal2', 'parcial2', 'p2', 'nota2', 'Cal_2', 'Cal2', 'Parcial2', 'P2', 'CAL2'])) || 0;
+                // Obtener calificaciones - buscar en múltiples formatos
+                let cal1 = parseFloat(getValueByKeys(r, ['cal_1', 'cal1', 'parcial1', 'p1', 'nota1', 'Cal_1', 'Cal1', 'Parcial1', 'P1', 'CAL1', 'calificacion_1'])) || 0;
+                let cal2 = parseFloat(getValueByKeys(r, ['cal_2', 'cal2', 'parcial2', 'p2', 'nota2', 'Cal_2', 'Cal2', 'Parcial2', 'P2', 'CAL2', 'calificacion_2'])) || 0;
                 
                 cal1 = Math.min(10, Math.max(0, cal1));
                 cal2 = Math.min(10, Math.max(0, cal2));
                 
                 const promFinalMateria = (cal1 + cal2) / 2;
                 
-                const generoRaw = String(getValueByKeys(r, ['genero', 'GENERO', 'Genero', 'Sexo', 'gender']) || '');
+                const generoRaw = String(getValueByKeys(r, ['genero', 'GENERO', 'Genero', 'Sexo', 'gender', 'sexo']) || '');
                 let genero = 'No especificado';
-                if (generoRaw === '1' || generoRaw.toLowerCase().startsWith('h') || generoRaw.toLowerCase() === 'hombre' || generoRaw.toLowerCase() === 'masculino') genero = 'Hombre';
-                else if (generoRaw === '2' || (generoRaw.toLowerCase().startsWith('m') && generoRaw.toLowerCase() !== 'matutino') || generoRaw.toLowerCase() === 'mujer' || generoRaw.toLowerCase() === 'femenino') genero = 'Mujer';
+                if (generoRaw === '1' || generoRaw.toLowerCase().startsWith('h') || generoRaw.toLowerCase() === 'hombre' || generoRaw.toLowerCase() === 'masculino' || generoRaw.toLowerCase() === 'm') genero = 'Hombre';
+                else if (generoRaw === '2' || generoRaw.toLowerCase().startsWith('f') || generoRaw.toLowerCase() === 'mujer' || generoRaw.toLowerCase() === 'femenino' || generoRaw.toLowerCase() === 'f') genero = 'Mujer';
                 else if (generoRaw !== '') genero = generoRaw.charAt(0).toUpperCase() + generoRaw.slice(1).toLowerCase();
                 
-                const estatus = getValueByKeys(r, ['estatus', 'ESTATUS', 'Estatus', 'status']) || 'Activo';
-                const tipo = getValueByKeys(r, ['tipo_alumno', 'tipo', 'TIPO', 'Tipo', 'categoria']) || 'Regular';
+                const estatus = getValueByKeys(r, ['estatus', 'ESTATUS', 'Estatus', 'status', 'STATUS']) || 'Activo';
+                const tipo = getValueByKeys(r, ['tipo_alumno', 'tipo', 'TIPO', 'Tipo', 'categoria', 'CATEGORIA']) || 'Regular';
                 
                 let semaforo = '';
                 if (promFinalMateria <= 4) semaforo = 'ROJO';
@@ -241,13 +245,13 @@
                 else semaforo = 'VERDE';
                 
                 return {
-                    Plantel: plantel,
-                    Semestre: semestre,
+                    Plantel: String(plantel),
+                    Semestre: String(semestre),
                     Turno: turno,
-                    Grupo: grupo,
-                    Alumno: alumno,
-                    Materia: materia,
-                    Docente: docente,
+                    Grupo: String(grupo),
+                    Alumno: String(alumno),
+                    Materia: String(materia),
+                    Docente: String(docente),
                     Cal1: cal1,
                     Cal2: cal2,
                     PromedioFinalMateria: promFinalMateria,
@@ -289,21 +293,19 @@
                 loaderDiv.style.display = 'flex';
                 loaderText.innerText = "🔗 Conectando con archivo compartido en Google Drive...";
                 
-                // Verificar que DB esté lista
                 if (!db || !dbReady) {
                     await initDB();
                 }
                 
-                const url = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/export?format=xlsx&gid=475379327`;
-                console.log(`🌐 Solicitando: ${url}`);
+                console.log(`🌐 Solicitando archivo con ID: ${GOOGLE_FILE_ID}`);
                 
-                const response = await fetch(url, {
+                const response = await fetch(GOOGLE_DRIVE_EXPORT_URL, {
                     cache: 'no-store',
                     headers: { 'Cache-Control': 'no-cache' }
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: No se pudo acceder al archivo.`);
+                    throw new Error(`HTTP ${response.status}: No se pudo acceder al archivo. Verifica que el archivo esté compartido.`);
                 }
                 
                 loaderText.innerText = "📥 Descargando hoja de cálculo...";
@@ -322,7 +324,7 @@
                 setTimeout(() => msg.remove(), 3000);
             } catch (err) {
                 console.error("❌ Error:", err);
-                alert("⚠️ No se pudo sincronizar con Google Drive.\n\nVerifica que el archivo esté compartido como 'Cualquier persona con el enlace puede ver'.\n\nDetalle: " + err.message);
+                alert("⚠️ No se pudo sincronizar con Google Drive.\n\nVerifica que:\n- El archivo esté compartido como 'Cualquier persona con el enlace puede ver'\n- El ID del archivo sea correcto\n\nDetalle: " + err.message);
                 loaderDiv.style.display = 'none';
             }
         }
@@ -529,14 +531,14 @@
             const ws = XLSX.utils.json_to_sheet(exportData);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Reporte_Parciales_Drive");
-            XLSX.writeFile(wb, `Reporte_RIA_${GOOGLE_SHEET_ID}.xlsx`);
+            XLSX.writeFile(wb, `Reporte_RIA_${GOOGLE_FILE_ID}.xlsx`);
         }
 
         function exportToPDF() {
             if(!dataFiltered.length) return alert("Sin datos");
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('l', 'mm', 'a4');
-            doc.text(`REPORTE RIA - SISTEMA SEMS (Archivo Drive ID: ${GOOGLE_SHEET_ID})`, 14, 15);
+            doc.text(`REPORTE RIA - SISTEMA SEMS (Archivo Drive ID: ${GOOGLE_FILE_ID})`, 14, 15);
             doc.autoTable({
                 head: [['Plantel','Sem','Turno','Alumno','Materia','Cal_1','Cal_2','PromFinal']],
                 body: dataFiltered.slice(0, 180).map(d => [d.Plantel, d.Semestre, d.Turno, d.Alumno, d.Materia, d.Cal1.toFixed(1), d.Cal2.toFixed(1), d.PromedioFinalMateria.toFixed(1)]),
